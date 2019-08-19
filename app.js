@@ -6,14 +6,12 @@ const request = require('request')
 const parseString = require('xml2js').parseString
 const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
+const lineReader = require('line-reader');
+const fs = require('fs')	
 mongoose.set("useCreateIndex", true)
 const Schema = mongoose.schema
-
 mongoose.connect(process.env.DB_PATH, {useNewUrlParser: true})
-
-
 app.use(bodyParser.urlencoded({extended:true}))
-
 
 const filingSchema = new mongoose.Schema ({
 	title: {
@@ -62,6 +60,69 @@ request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-
       })
   })
 });
+
+// lineReader.eachLine('test.txt', function(line) {
+//     console.log(line);
+//     if (line.includes('<SEC')) {
+//         return false
+//     }
+// });
+
+// const byline = require('byline');
+ 
+// var stream = fs.createReadStream('test.txt', { encoding: 'utf8' });
+// stream = byline.createStream(stream);
+ 
+// stream.on('data', function(line) {
+//   console.log(line)
+// });
+
+const readline = require('readline')
+
+const outputFile = fs.createWriteStream('./output-file.txt')
+const rl = readline.createInterface({
+    input: fs.createReadStream('test.txt')
+})
+
+// Handle any error that occurs on the write stream
+outputFile.on('err', err => {
+    // handle error
+    console.log(err)
+})
+
+// Once done writing, rename the output to be the input file name
+outputFile.on('close', () => { 
+    console.log('done writing')
+
+    fs.rename('./output-file.txt', './input-file.txt', err => {
+        if (err) {
+          // handle error
+          console.log(err)
+        } else {
+          console.log('renamed file')
+        }
+    }) 
+})
+
+// Read the file and replace any text that matches
+rl.on('line', line => {
+    let text = line
+    // Do some evaluation to determine if the text matches 
+    if (text.includes('TIMES NEW ROMAN')) {
+        // console.log(text)
+        // Replace current line text with new text
+        // text = text.replace(/style=".*"/,'')
+        text = text.replace('TIMES NEW ROMAN', 'ARIAL')
+        // console.log(text)
+    }
+    // write text to the output file stream with new line character
+    outputFile.write(`${text}\n`)
+})
+
+// Done reading the input, call end() on the write stream
+rl.on('close', () => {
+    outputFile.end()
+})
 
 app.listen(port, function(){
 console.log(`listening on port ${port}`)
