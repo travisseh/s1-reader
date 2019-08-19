@@ -92,6 +92,10 @@ outputFile.on('err', err => {
 
 // Once done writing, rename the output to be the input file name
 outputFile.on('close', () => { 
+    fs.copyFile('output-file.txt', 'output.html', (err) => {
+        if (err) throw err;
+        console.log('source.txt was copied to destination.txt');
+      });
     console.log('done writing')
 
     fs.rename('./output-file.txt', './input-file.txt', err => {
@@ -109,11 +113,37 @@ rl.on('line', line => {
     let text = line
     // Do some evaluation to determine if the text matches 
     if (text.includes('TIMES NEW ROMAN')) {
-        // console.log(text)
-        // Replace current line text with new text
-        // text = text.replace(/style=".*"/,'')
         text = text.replace('TIMES NEW ROMAN', 'ARIAL')
-        // console.log(text)
+        console.log("TIMES NEW ROMAN")
+        outputFile.write(`${text}\n`)
+
+    }
+    if (text.includes('Times New Roman')) {
+        text = text.replace('Times New Roman', 'ARIAL')
+        console.log("Times New Roman")
+        outputFile.write(`${text}\n`)
+
+    }
+    if (text.includes('style="MARGIN: 0px"')) {
+        text = text.replace('style="MARGIN: 0px"', '')
+        outputFile.write(`${text}\n`)
+
+    }
+    if (text.includes('align="justify"')) {
+        text = text.replace('align="justify"', '')
+        console.log("align=justify")
+        outputFile.write(`${text}\n`)
+
+    }
+    if (text.includes('vertical-algin: bottom;')) {
+        text = text.replace('vertical-algin: bottom;', '')
+        outputFile.write(`${text}\n`)
+
+    }
+    if (text.includes('text-align: justify')) {
+        text = text.replace('text-align: justify', '')
+        outputFile.write(`${text}\n`)
+
     }
     // write text to the output file stream with new line character
     outputFile.write(`${text}\n`)
