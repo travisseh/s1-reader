@@ -44,43 +44,46 @@ request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-
             console.log(err)
         }
       result.feed.entry.forEach((entry) => {
-        const title = entry.title[0]
         const htmUrl = entry.link[0].$.href
-        const htmIdString = entry.id[0]
-        const word = 'accession-number='
-        const htmId = htmIdString.substr(htmIdString.indexOf(word) + word.length)
-        let textUrl
-
-        request(htmUrl, function(err, resp, body){
-        const $ = cheerio.load(body);
-        let s1Text
-        let s1TextLength = $('td').filter(function(el) {
-            return $(this).html() === "S-1" || $(this).html() === "S-1/A"
-        }).prev().length
-
-        if (s1TextLength > 1) {
-            s1Text = $('td').filter(function(el) {
-                return $(this).html() === "S-1" || $(this).html() === "S-1/A"
-            }).prev().eq(1).text()
-        } else {
-            s1Text = $('td').filter(function(el) {
-                return $(this).html() === "S-1" || $(this).html() === "S-1/A"
-            }).prev().text()
-        }
-        let replaceText = htmId + '-index.htm'
-        textUrl = htmUrl.replace(replaceText, s1Text)
-        console.log(textUrl)
-        });
-
         Filing.findOne({htmUrl: htmUrl}, (err, filing) => {
+            
+            if (err) {
+                console.log(err)
+            }
             if (!filing) {
-                const filing = new Filing ({
-                    title: title,
-                    htmUrl: htmUrl,
-                    textUrl: textUrl
+                const title = entry.title[0]
+                const htmIdString = entry.id[0]
+                const word = 'accession-number='
+                const htmId = htmIdString.substr(htmIdString.indexOf(word) + word.length)
+                let textUrl
+
+
+                request(htmUrl, function(err, resp, body){
+                    const $ = cheerio.load(body);
+                    let s1Text
+                    let s1TextLength = $('td').filter(function(el) {
+                        return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+                    }).prev().length
+
+                    if (s1TextLength > 1) {
+                        s1Text = $('td').filter(function(el) {
+                            return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+                        }).prev().eq(1).text()
+                    } else {
+                        s1Text = $('td').filter(function(el) {
+                            return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+                        }).prev().text()
+                    }
+                    let replaceText = htmId + '-index.htm'
+                    textUrl = htmUrl.replace(replaceText, s1Text)
+                    
+                    const filing = new Filing ({
+                        title: title,
+                        htmUrl: htmUrl,
+                        textUrl: textUrl
+                    })
+                    filing.save()
                 })
-                // filing.save()
-                // console.log(filing)
             }
 
         })
@@ -179,7 +182,7 @@ const readline = require('readline')
 // // Done reading the input, call end() on the write stream
 // rl.on('close', () => {
 //     outputFile.end()
-// })
+// })  
 
 app.listen(port, function(){
 console.log(`listening on port ${port}`)
