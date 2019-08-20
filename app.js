@@ -8,6 +8,7 @@ const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const lineReader = require('line-reader');
 const fs = require('fs')	
+const cheerio = require('cheerio')
 mongoose.set("useCreateIndex", true)
 const Schema = mongoose.schema
 mongoose.connect(process.env.DB_PATH, {useNewUrlParser: true})
@@ -45,7 +46,32 @@ request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-
       result.feed.entry.forEach((entry) => {
         const title = entry.title[0]
         const htmUrl = entry.link[0].$.href
-        const textUrl = htmUrl.replace('-index.htm','.txt')
+        const htmIdString = entry.id[0]
+        const word = 'accession-number='
+        const htmId = htmIdString.substr(htmIdString.indexOf(word) + word.length)
+        let textUrl
+
+        request(htmUrl, function(err, resp, body){
+        const $ = cheerio.load(body);
+        let s1Text
+        let s1TextLength = $('td').filter(function(el) {
+            return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+        }).prev().length
+
+        if (s1TextLength > 1) {
+            s1Text = $('td').filter(function(el) {
+                return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+            }).prev().eq(1).text()
+        } else {
+            s1Text = $('td').filter(function(el) {
+                return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+            }).prev().text()
+        }
+        let replaceText = htmId + '-index.htm'
+        textUrl = htmUrl.replace(replaceText, s1Text)
+        console.log(textUrl)
+        });
+
         Filing.findOne({htmUrl: htmUrl}, (err, filing) => {
             if (!filing) {
                 const filing = new Filing ({
@@ -53,7 +79,8 @@ request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-
                     htmUrl: htmUrl,
                     textUrl: textUrl
                 })
-                filing.save()
+                // filing.save()
+                // console.log(filing)
             }
 
         })
@@ -79,80 +106,80 @@ request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-
 
 const readline = require('readline')
 
-const outputFile = fs.createWriteStream('./output-file.txt')
-const rl = readline.createInterface({
-    input: fs.createReadStream('test.txt')
-})
+// const outputFile = fs.createWriteStream('./output-file.txt')
+// const rl = readline.createInterface({
+//     input: fs.createReadStream('test.txt')
+// })
 
-// Handle any error that occurs on the write stream
-outputFile.on('err', err => {
-    // handle error
-    console.log(err)
-})
+// // Handle any error that occurs on the write stream
+// outputFile.on('err', err => {
+//     // handle error
+//     console.log(err)
+// })
 
-// Once done writing, rename the output to be the input file name
-outputFile.on('close', () => { 
-    fs.copyFile('output-file.txt', 'output.html', (err) => {
-        if (err) throw err;
-        console.log('source.txt was copied to destination.txt');
-      });
-    console.log('done writing')
+// // Once done writing, rename the output to be the input file name
+// outputFile.on('close', () => { 
+//     fs.copyFile('output-file.txt', 'output.html', (err) => {
+//         if (err) throw err;
+//         console.log('source.txt was copied to destination.txt');
+//       });
+//     console.log('done writing')
 
-    fs.rename('./output-file.txt', './input-file.txt', err => {
-        if (err) {
-          // handle error
-          console.log(err)
-        } else {
-          console.log('renamed file')
-        }
-    }) 
-})
+//     fs.rename('./output-file.txt', './input-file.txt', err => {
+//         if (err) {
+//           // handle error
+//           console.log(err)
+//         } else {
+//           console.log('renamed file')
+//         }
+//     }) 
+// })
 
-// Read the file and replace any text that matches
-rl.on('line', line => {
-    let text = line
-    // Do some evaluation to determine if the text matches 
-    if (text.includes('TIMES NEW ROMAN')) {
-        text = text.replace('TIMES NEW ROMAN', 'ARIAL')
-        console.log("TIMES NEW ROMAN")
-        outputFile.write(`${text}\n`)
+// // Read the file and replace any text that matches
+// rl.on('line', line => {
+//     let text = line
+//     // Do some evaluation to determine if the text matches 
+//     if (text.includes('TIMES NEW ROMAN')) {
+//         text = text.replace('TIMES NEW ROMAN', 'ARIAL')
+//         console.log("TIMES NEW ROMAN")
+//         outputFile.write(`${text}\n`)
 
-    }
-    if (text.includes('Times New Roman')) {
-        text = text.replace('Times New Roman', 'ARIAL')
-        console.log("Times New Roman")
-        outputFile.write(`${text}\n`)
+//     }
+//     if (text.includes('Times New Roman')) {
+//         text = text.replace('Times New Roman', 'ARIAL')
+//         console.log("Times New Roman")
+//         outputFile.write(`${text}\n`)
 
-    }
-    if (text.includes('style="MARGIN: 0px"')) {
-        text = text.replace('style="MARGIN: 0px"', '')
-        outputFile.write(`${text}\n`)
+//     }
+//     if (text.includes('style="MARGIN: 0px"')) {
+//         text = text.replace('style="MARGIN: 0px"', '')
+//         outputFile.write(`${text}\n`)
 
-    }
-    if (text.includes('align="justify"')) {
-        text = text.replace('align="justify"', '')
-        console.log("align=justify")
-        outputFile.write(`${text}\n`)
+//     }
+//     if (text.includes('align="justify"')) {
+//         text = text.replace('align="justify"', '')
+//         console.log("align=justify")
+//         outputFile.write(`${text}\n`)
 
-    }
-    if (text.includes('vertical-algin: bottom;')) {
-        text = text.replace('vertical-algin: bottom;', '')
-        outputFile.write(`${text}\n`)
+//     }
+//     if (text.includes('vertical-algin: bottom;')) {
+//         text = text.replace('vertical-algin: bottom;', '')
+//         outputFile.write(`${text}\n`)
 
-    }
-    if (text.includes('text-align: justify')) {
-        text = text.replace('text-align: justify', '')
-        outputFile.write(`${text}\n`)
+//     }
+//     if (text.includes('text-align: justify')) {
+//         text = text.replace('text-align: justify', '')
+//         outputFile.write(`${text}\n`)
 
-    }
-    // write text to the output file stream with new line character
-    outputFile.write(`${text}\n`)
-})
+//     }
+//     // write text to the output file stream with new line character
+//     outputFile.write(`${text}\n`)
+// })
 
-// Done reading the input, call end() on the write stream
-rl.on('close', () => {
-    outputFile.end()
-})
+// // Done reading the input, call end() on the write stream
+// rl.on('close', () => {
+//     outputFile.end()
+// })
 
 app.listen(port, function(){
 console.log(`listening on port ${port}`)
