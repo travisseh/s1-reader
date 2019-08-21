@@ -9,87 +9,79 @@ const mongoose = require('mongoose')
 const lineReader = require('line-reader');
 const fs = require('fs')	
 const cheerio = require('cheerio')
+const readline = require('readline')
+const Filing = require('./models/Filing').Filing
+
 mongoose.set("useCreateIndex", true)
-const Schema = mongoose.schema
 mongoose.connect(process.env.DB_PATH, {useNewUrlParser: true})
 app.use(bodyParser.urlencoded({extended:true}))
 
-const filingSchema = new mongoose.Schema ({
-	title: {
-        type: String,
-        required: true
-    },
-	textUrl: {
-        type: String,
-        required: true
-    },
-    htmUrl: {
-        type: String,
-        required: true
-    },
-    date: {
-        type: Date,
-        default: Date.now
-    }
-})
 
-const Filing = mongoose.model("Filing", filingSchema)
-
-request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-1&company=&dateb=&owner=include&start=0&count=40&output=atom', function (err, response, body) {
-    if (err) {
-        console.log(err)
-    }
-  parseString(body, (err, result) => {
+function checkForNewS1s(){
+    request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-1&company=&dateb=&owner=include&start=0&count=40&output=atom', function (err, response, body) {
         if (err) {
             console.log(err)
         }
-      result.feed.entry.forEach((entry) => {
-        const htmUrl = entry.link[0].$.href
-        Filing.findOne({htmUrl: htmUrl}, (err, filing) => {
-            
+        parseString(body, (err, result) => {
             if (err) {
                 console.log(err)
             }
-            if (!filing) {
-                const title = entry.title[0]
-                const htmIdString = entry.id[0]
-                const word = 'accession-number='
-                const htmId = htmIdString.substr(htmIdString.indexOf(word) + word.length)
-                let textUrl
-
-
-                request(htmUrl, function(err, resp, body){
-                    const $ = cheerio.load(body);
-                    let s1Text
-                    let s1TextLength = $('td').filter(function(el) {
-                        return $(this).html() === "S-1" || $(this).html() === "S-1/A"
-                    }).prev().length
-
-                    if (s1TextLength > 1) {
-                        s1Text = $('td').filter(function(el) {
-                            return $(this).html() === "S-1" || $(this).html() === "S-1/A"
-                        }).prev().eq(1).text()
-                    } else {
-                        s1Text = $('td').filter(function(el) {
-                            return $(this).html() === "S-1" || $(this).html() === "S-1/A"
-                        }).prev().text()
+        result.feed.entry.forEach((entry) => {
+            const htmUrl = entry.link[0].$.href
+            Filing.findOne({htmUrl: htmUrl}, (err, filing) => {
+                
+                if (err) {
+                    console.log(err)
+                }
+                if (!filing) {
+                    const title = entry.title[0]
+                    const htmIdString = entry.id[0]
+                    function getHtmId(htmIdString){
+                        const word = 'accession-number='
+                        const htmId = htmIdString.substr(htmIdString.indexOf(word) + word.length)
+                        return htmId
                     }
-                    let replaceText = htmId + '-index.htm'
-                    textUrl = htmUrl.replace(replaceText, s1Text)
-                    
-                    const filing = new Filing ({
-                        title: title,
-                        htmUrl: htmUrl,
-                        textUrl: textUrl
+                    const htmId = getHtmId(htmIdString)
+                    let textUrl
+    
+                    request(htmUrl, function(err, resp, body){
+                        const $ = cheerio.load(body);
+                        let s1Text
+                        let s1TextLength = $('td').filter(function(el) {
+                            return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+                        }).prev().length
+    
+                        if (s1TextLength > 1) {
+                            s1Text = $('td').filter(function(el) {
+                                return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+                            }).prev().eq(1).text()
+                        } else {
+                            s1Text = $('td').filter(function(el) {
+                                return $(this).html() === "S-1" || $(this).html() === "S-1/A"
+                            }).prev().text()
+                        }
+                        let replaceText = htmId + '-index.htm'
+                        textUrl = htmUrl.replace(replaceText, s1Text)
+                        
+                        const filing = new Filing ({
+                            title: title,
+                            htmUrl: htmUrl,
+                            textUrl: textUrl
+                        })
+                        filing.save()
                     })
-                    filing.save()
-                })
-            }
-
+                }
+    
+            })
         })
-      })
-  })
-});
+    })
+    });
+}
+
+checkForNewS1s()
+setInterval(checkForNewS1s,86400000)
+
+
 
 // lineReader.eachLine('test.txt', function(line) {
 //     console.log(line);
@@ -106,8 +98,6 @@ request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-
 // stream.on('data', function(line) {
 //   console.log(line)
 // });
-
-const readline = require('readline')
 
 // const outputFile = fs.createWriteStream('./output-file.txt')
 // const rl = readline.createInterface({
