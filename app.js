@@ -16,6 +16,12 @@ mongoose.set("useCreateIndex", true)
 mongoose.connect(process.env.DB_PATH, {useNewUrlParser: true})
 app.use(bodyParser.urlencoded({extended:true}))
 
+app.get('/filings', (req, res, next) => {
+    Filing
+        .find({})
+        .then(foundFilings => res.json(foundFilings))
+        .catch(err => console.log(err))
+})
 
 function checkForNewS1s(){
     request('https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=s-1&company=&dateb=&owner=include&start=0&count=40&output=atom', function (err, response, body) {
@@ -78,9 +84,8 @@ function checkForNewS1s(){
     });
 }
 
-checkForNewS1s()
-setInterval(checkForNewS1s,86400000)
-
+// checkForNewS1s()
+// setInterval(checkForNewS1s,86400000)
 
 
 // lineReader.eachLine('test.txt', function(line) {
