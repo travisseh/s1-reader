@@ -11,6 +11,8 @@ const fs = require('fs')
 const cheerio = require('cheerio')
 const readline = require('readline')
 const Filing = require('./models/Filing').Filing
+const test = require('./models/Filing').test
+const dirtyHTML = require('./Genomics').dirtyHTML
 
 mongoose.set("useCreateIndex", true)
 mongoose.connect(process.env.DB_PATH, {useNewUrlParser: true})
@@ -83,6 +85,24 @@ function checkForNewS1s(){
     })
     });
 }
+
+function sanitize(dirty){
+    const sanitizeHtml = require('sanitize-html');
+ 
+    const clean = sanitizeHtml(dirty);
+
+    fs.appendFile('mynewfile1.html', clean, function (err) {
+    if (err) throw err;
+    console.log('Saved!');
+    console.log(clean)
+  });
+}
+
+console.log(test)
+const html = "<h1>Hello</h1>"
+console.log(html)
+sanitize(dirtyHTML)
+
 
 // checkForNewS1s()
 // setInterval(checkForNewS1s,86400000)
