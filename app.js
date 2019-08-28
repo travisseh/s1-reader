@@ -30,12 +30,12 @@ function checkForNewS1s(){
         if (err) {
             console.log(err)
         }
-        parseString(body, (err, result) => {
+        parseString(body, {attrkey: "attr"}, (err, result) => {
             if (err) {
                 console.log(err)
             }
         result.feed.entry.forEach((entry) => {
-            const htmUrl = entry.link[0].$.href
+            const htmUrl = entry.link[0].attr.href
             Filing.findOne({htmUrl: htmUrl}, (err, filing) => {
                 
                 if (err) {
@@ -49,6 +49,7 @@ function checkForNewS1s(){
                         const htmId = htmIdString.substr(htmIdString.indexOf(word) + word.length)
                         return htmId
                     }
+                    const type = entry.category[0].attr.term
                     const htmId = getHtmId(htmIdString)
                     let textUrl
     
@@ -74,7 +75,8 @@ function checkForNewS1s(){
                         const filing = new Filing ({
                             title: title,
                             htmUrl: htmUrl,
-                            textUrl: textUrl
+                            textUrl: textUrl,
+                            type: type
                         })
                         filing.save()
                     })
@@ -84,6 +86,11 @@ function checkForNewS1s(){
         })
     })
     });
+}
+
+function getTicker(dirtyHTML) {
+    const $ = cheerio.load(dirtyHTML);
+
 }
 
 function sanitize(dirty){
@@ -98,13 +105,10 @@ function sanitize(dirty){
   });
 }
 
-console.log(test)
-const html = "<h1>Hello</h1>"
-console.log(html)
-sanitize(dirtyHTML)
+// sanitize(dirtyHTML)
 
 
-// checkForNewS1s()
+checkForNewS1s()
 // setInterval(checkForNewS1s,86400000)
 
 
