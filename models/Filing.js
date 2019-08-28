@@ -21,6 +21,4 @@ const filingSchema = new mongoose.Schema ({
 
 const Filing = mongoose.model("Filing", filingSchema)
 
-const test = 'text'
-
-module.exports = {Filing, test}
+module.exports = {Filing}
